@@ -1,0 +1,211 @@
+---
+- name: Install environment
+  hosts: localhost
+  tasks:
+    - include_vars: variables.yaml
+#
+# Network Creation, names are coming from the network part in varables.yaml
+#
+#
+    - name: create network
+      os_network:
+        cloud: pluscloudopen
+        state: present
+        name: "{{ item.netname }}"
+        external: no
+        wait: yes
+      loop: "{{ networks }}"
+      register: allnetworks
+
+#
+# Subnet Creation, Variables are coming from the network part in variables.yaml
+# 
+# First part: Creation of subnets with only one route to an other subnet 
+#
+
+    - name: create subnet 1 routes
+      os_subnet:
+        cloud: pluscloudopen
+        state: present
+        network_name: "{{ item.netname }}"
+        name: "{{ item.subname }}"
+        cidr: "{{ item.subnet_cdir }}"
+        dns_nameservers:
+          - "{{ item.subnet_dns }}"
+        wait: yes
+        host_routes:
+           - destination: "{{ item.route_a }}"
+             nexthop: "{{ item.route_a_gw }}"
+      when: item.route_b == false
+      loop: "{{ networks }}"
+# 
+# Second part of subnet creation: Creation of subnets with only two routes to other subnets
+#
+    - name: create subnet 2 routes
+      os_subnet:
+        cloud: pluscloudopen
+        state: present
+        network_name: "{{ item.netname }}"
+        name: "{{ item.subname }}"
+        cidr: "{{ item.subnet_cdir }}"
+        dns_nameservers:
+          - "{{ item.subnet_dns }}"
+        wait: yes
+        host_routes:
+           - destination: "{{ item.route_a }}"
+             nexthop: "{{ item.route_a_gw }}"
+           - destination: "{{ item.route_b }}"
+             nexthop: "{{ item.route_b_gw }}"
+      when: item.route_b != false and item.route_a != false
+      loop: "{{ networks }}"
+
+#
+# Router Creation. Informations come from the router part in variables.yaml
+#
+# First part, creation of external routers, connected to the provider network
+#
+
+    - name: create external router
+      os_router:
+        cloud: pluscloudopen
+        state: present
+        name: "{{ item.name }}"
+        network: "{{ item.front_net }}"
+        interfaces:
+          - "{{ item.b_sub }}"
+      when: item.router_ext == true
+      loop: "{{ router_conf }}"
+#
+# Second part of router creation: creation of internal subnet routers
+#
+    - name: create internal router
+      os_router:
+        cloud: pluscloudopen
+        state: present
+        name: "{{ item.name }}"
+        interfaces:
+          - net: "{{ item.back_net }}"
+            subnet: "{{ item.b_sub }}"
+            portip: "{{ item.b_ip }}"
+          - net: "{{ item.front_net }}"
+            subnet: "{{ item.f_sub }}"
+            portip: "{{ item.f_ip }}"
+      when: item.router_ext == false
+      loop: "{{ router_conf }}"
+#
+#  Instancecreation, informations come from the instancesweb part in variables.yaml
+#  These instances are normally connected in the first front network, which is routed to the external provider network
+#  Also the ssh_key (variables.yaml) to connect to the instance is needed here
+#
+
+    - name: create instances web
+      os_server:
+        cloud: pluscloudopen
+        name: "{{ item.name }}"
+        image: "{{ item.image }}"
+        flavor: "{{ item.flavor }}"
+        boot_from_volume: yes
+        terminate_volume: yes
+        volume_size: "{{ item.disk }}"
+        key_name: "{{ ssh_key }}"
+        timeout: 200
+        network: "{{ item.image_network }}"
+        auto_ip: no
+      loop: "{{ instancesweb }}"
+      register: allinstancesweb
+#
+#  Instancecreation of the middleware instances, informations come from the instancesmiddleware part in variables.yaml
+#  These instances are normally connected to an internal network with no direct connection to the external provider network
+#  They can be reached via the internal router between front and middle subnet
+#  Also the ssh_key (variables.yaml) to connect to the instance is needed here
+#
+    - name: create instances middelware
+      os_server:
+        cloud: pluscloudopen
+        name: "{{ item.name }}"
+        image: "{{ item.image }}"
+        flavor: "{{ item.flavor }}"
+        boot_from_volume: yes
+        terminate_volume: yes
+        volume_size: "{{ item.disk }}"
+        key_name: "{{ ssh_key }}"
+        timeout: 200
+        network: "{{ item.image_network }}"
+        auto_ip: no
+      loop: "{{ instancesmiddleware }}"
+      register: allinstancesmiddle
+#
+#  Instancecreation of the backenend instances (like Database Servers), informations come from the instancesback
+#  part in variables.yaml
+#  These instances are normally connected to an internal network with no direct connection to the external provider network
+#  They can be reached via the internal router between middle and back subnet
+#  Also the ssh_key (variables.yaml) to connect to the instance is needed here
+#
+    - name: create instances backend
+      os_server:
+        cloud: pluscloudopen
+        name: "{{ item.name }}"
+        image: "{{ item.image }}"
+        flavor: "{{ item.flavor }}"
+        boot_from_volume: yes
+        terminate_volume: yes
+        volume_size: "{{ item.disk }}"
+        key_name: "{{ ssh_key }}"
+        timeout: 200
+        network: "{{ item.image_network }}"
+        auto_ip: no
+      loop: "{{ instancesbackend }}"
+      register: allinstancesback
+#
+#  Loadbalancer Creation, Information come from the loadbalancer part in variables.yaml
+#
+    - name: Loadbalancer
+      os_loadbalancer:
+        cloud: pluscloudopen
+        state: present
+        name: "{{ loadbalancer_name }}"
+        vip_subnet: "{{ lb_instance_subnet }}"
+        auto_public_ip: yes
+        listeners:
+          - name: "{{ lb_listener_name }}"
+            protocol: TCP
+            protocol_port: "{{ lb_listener_port }}"
+            pool:
+              name: "{{ lb_pool_name }}"
+              protocol: TCP
+        wait: yes
+        timeout: 240
+#
+#  Adding Pool Members to the Loadbalancer, Information come from the instances* parts in variables.yaml
+#  Only instances with loadbalanced true are added to the pool. These instances must be part of a subnet
+#  which is connected to the external provider network. 
+#
+    - name: Add Member to Loadbalancer
+      os_member:
+        cloud: pluscloudopen
+        state: present
+        name: "{{ item.server.name }}"
+        pool: "{{ lb_pool_name }}"
+        address: "{{ item.server.private_v4 }}"
+        protocol_port: "{{ item.item.lb_port }}"
+      when: item.item.loadbalanced == true
+      loop: "{{ allinstancesweb.results }}"
+#
+# Debbuging Info Output , if needed uncomment and replace needed registered variables
+#
+#
+# - name: checking hosts
+#  hosts: webserver
+#  connection: local
+#  gather_facts: false
+#  tasks:
+#    - debug: var=group_names
+#    - debug: msg="{{ inventory_hostname }}"
+#    - debug: var=hostvars[inventory_hostname]
+
+#
+# Call to set up the jump host with external IP, to connect via ssh
+#
+- name: Create Jump
+  import_playbook: create_jump_host.yaml
+

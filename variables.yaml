@@ -1,0 +1,238 @@
+---
+# variables for deploying environment
+#
+#
+# info provider network
+#
+network_provider: ext01
+
+#
+#  ssh-key name. The ssh public key must exist in the environment
+#
+ssh_key: hamm
+
+#
+# PART: Networks
+# Used in part "create network" and "create subnet*"
+# 
+# Variables are:
+# netname     : Name of network
+# subname     : Name of subnet belonging to $netname
+# subnet_cdir : Subnet net allocation, written in cdir format
+# subnet_dns  : DNS host for subnet. Use offical DNS Server or subnet DNS server
+# route_a     : Route for an internal network to reach. This information is written to the dhcp 
+#               config of the subnet, and will be deliverd to the created instances in the subnet. Set to false if not needed
+# route_a_gw  : Gatewayrouterinformation for the route given in route_a. The router will be created later. Set to false if not needed
+# route_b     : Second route for a second internal network to reach. Set to false not needed
+# route_b_gw  : Gatewayrouterinformation for the second network to reach. The Router will be created later. Set to false if not needed
+#
+networks:
+  -  { netname: front, 
+       subname: front_sub, 
+       subnet_cdir: 10.10.10.0/24, 
+       subnet_dns: 8.8.8.8,
+       route_a: 10.10.20.0/24,
+       route_a_gw: 10.10.10.254,
+       route_b: false,
+       route_b_gw: false }
+  -  { netname: middle,
+       subname: middle_sub,
+       subnet_cdir: 10.10.20.0/24,
+       subnet_dns: 8.8.8.8,
+       route_a: 10.10.30.0/24,
+       route_a_gw: 10.10.20.254,
+       route_b: 10.10.10.0/24,
+       route_b_gw: 10.10.20.253 }
+  -  { netname: back,
+       subname: back_sub,
+       subnet_cdir: 10.10.30.0/24,
+       subnet_dns: 8.8.8.8,
+       route_a: 10.10.20.0/24,
+       route_a_gw: 10.10.30.253,
+       route_b: false,
+       route_b_gw: false }
+
+
+#
+# Webserver instances in front net
+# add instances here
+# 
+# Variables are:
+# name         : Name of the instance
+# image        : Image to take for building und running the instance
+# flavor       : The flavor to use. For getting all flavors available use "openstack flavor list" or the horizon UI
+# disk         : Disk size for the instance. Please notice, that disks will be removed after removing the instance due to 
+#                the parameter terminate_volume: yes in the main yaml file
+# loadbalanced : Set to true, if the machine shoud be part of a loadbalanced service. To use the loadbalancing feature, the
+#                instance must be part of a network, which has an external router to the provider network of the environment 
+# lb_port      : Set the port for the loadbalancing pool, the installed service should listen on this port
+# image_network: The network name, in which the instance should be created. It must be one of the network names defined
+#                in the network section in this configuration file.
+# 
+#
+#
+instancesweb:
+  -  { name: web01,
+       image: Ubuntu 20.04,
+       flavor: 2C-2GB-20GB,
+       disk: 20,
+       loadbalanced: true,
+       lb_port: 80,
+       image_network: front }
+  -  { name: web02,
+       image: Ubuntu 20.04,
+       flavor: 2C-2GB-20GB,
+       disk: 20,
+       loadbalanced: false,
+       lb_port: 80,
+       image_network: front }
+  -  { name: web03,
+       image: Ubuntu 20.04,
+       flavor: 2C-2GB-20GB,
+       disk: 20,
+       loadbalanced: true,
+       lb_port: 80,
+       image_network: front }
+
+
+#
+# Middleware instances in "mid" net
+# add instances here
+# 
+# Variables are:
+# name         : Name of the instance
+# image        : Image to take for building und running the instance
+# flavor       : The flavor to use. For getting all flavors available use "openstack flavor list" or the horizon UI
+# disk         : Disk size for the instance. Please notice, that disks will be removed after removing the instance due to 
+#                the parameter terminate_volume: yes in the main yaml file
+# loadbalanced : Set to true, if the machine shoud be part of a loadbalanced service. To use the loadbalancing feature, the
+#                instance must be part of a network, which has an external router to the provider network of the environment. 
+#                Normally, the mid net has no connection to the provider network, so the loadbalancing will not function here.
+#                These information is for later use, to loadbalance internal traffic. Set it to false right now.
+# lb_port      : Set the port for the loadbalancing pool, the installed service should listen on this port
+# image_network: The network name, in which the instance should be created. It must be one of the network names defined
+#                in the network section in this configuration file.
+# 
+instancesmiddleware:
+  -  { name: mid01,
+       image: Ubuntu 20.04,
+       flavor: 2C-2GB-20GB,
+       disk: 20,
+       loadbalanced: false,
+       lb_port: 80,
+       image_network: middle }
+  -  { name: mid02,
+       image: Ubuntu 20.04,
+       flavor: 2C-2GB-20GB,
+       disk: 20,
+       loadbalanced: false,
+       lb_port: 80,
+       image_network: middle }
+  -  { name: mid03,
+       image: Ubuntu 20.04,
+       flavor: 2C-2GB-20GB,
+       disk: 20,
+       loadbalanced: false,
+       lb_port: 80,
+       image_network: middle }
+
+
+#
+# Backnet instances in "back" net
+# add instances here
+# 
+# Variables are:
+# name         : Name of the instance
+# image        : Image to take for building und running the instance
+# flavor       : The flavor to use. For getting all flavors available use "openstack flavor list" or the horizon UI
+# disk         : Disk size for the instance. Please notice, that disks will be removed after removing the instance due to 
+#                the parameter terminate_volume: yes in the main yaml file
+# loadbalanced : Set to true, if the machine shoud be part of a loadbalanced service. To use the loadbalancing feature, the
+#                instance must be part of a network, which has an external router to the provider network of the environment. 
+#                Normally, the back net has no connection to the provider network, so the loadbalancing will not function here.
+#                These information is for later use, to loadbalance internal traffic. Set it to false right now.
+# lb_port      : Set the port for the loadbalancing pool, the installed service should listen on this port
+# image_network: The network name, in which the instance should be created. It must be one of the network names defined
+#                in the network section in this configuration file.
+# 
+instancesbackend:
+  -  { name: back01,
+       image: Ubuntu 20.04,
+       flavor: 2C-2GB-20GB,
+       disk: 20,
+       loadbalanced: false,
+       lb_port: 80,
+       image_network: back }
+  -  { name: back02,
+       image: Ubuntu 20.04,
+       flavor: 2C-2GB-20GB,
+       disk: 20,
+       loadbalanced: false,
+       lb_port: 80,
+       image_network: back }
+  -  { name: back03,
+       image: Ubuntu 20.04,
+       flavor: 2C-2GB-20GB,
+       disk: 20,
+       loadbalanced: false,
+       lb_port: 80,
+       image_network: back }
+
+
+#
+# Router Configuration
+#
+# name       : Name of the router
+# front_net  : Front network to connect, defined in the network section, or external provider network for routers connecting 
+#              to the internet
+# f_ip       : IP of the Router in the front_net network, obsolete for the external router
+# f_sub      : Front subnet to connect, defined in the network section, or external provider subnet for routers connecting
+#              to the internet
+# back_net   : Second network (back) to connect, defined in the network section
+# b_ip       : IP of the Router in the back_net network, obsolete for the external router
+# b_sub      : Back subnet to connect, defined in the network section
+# router_ext : true for external router, false if it is an internal router connecting two internal networks
+#
+router_conf:
+  -  { name: front_ext,
+       front_net: ext01,
+       f_sub: ext01,
+       back_net: front,
+       b_sub: front_sub,
+       router_ext: true }
+  -  { name: front_middle,
+       front_net: front, 
+       f_ip: 10.10.10.254,
+       f_sub: front_sub,
+       back_net: middle,
+       b_ip: 10.10.20.253,
+       b_sub: middle_sub,
+       router_ext: false }
+  -  { name: middle_back,
+       front_net: middle,
+       f_ip: 10.10.20.254,
+       f_sub: middle_sub,
+       back_net: back,
+       b_ip: 10.10.30.253,
+       b_sub: back_sub,
+       router_ext: false }
+
+#
+# Loadbalancer Info
+# Define the front loadbalancer
+#
+# Variables are:
+# loadbalancer_name   : Name of the loadbalancer
+# lb_listener_name    : Name of the listener
+# lb_listener_port    : Listener port, the port is reachable via external provider network
+# lb_pool_name        : The pool name for the members
+# lb_instance_network : Network in which the loadbalancer will be created. The network must be one of the networks definied in this
+#                       config file. Currlently only the front network is working. 
+# lb_instance_subnet  : Subnet name of the Network. It must be the subnet name correspondig to the network name above
+#
+loadbalancer_name: my_lb
+lb_listener_name: my_listener
+lb_listener_port: 80
+lb_pool_name: my_pool
+lb_instance_network: front
+lb_instance_subnet: front_sub

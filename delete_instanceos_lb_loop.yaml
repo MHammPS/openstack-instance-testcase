@@ -1,0 +1,63 @@
+---
+- name: Delete Openstack environment
+  hosts: localhost
+  tasks:
+    - include_vars: variables.yaml
+
+    - name: delete instances Web
+      os_server:
+        cloud: pluscloudopen
+        name: "{{ item.name }}"
+        network: "{{ item.image_network }}"
+        state: absent
+        wait: no
+      loop: "{{ instancesweb }}"
+
+    - name: delete instances Middleware
+      os_server:
+        cloud: pluscloudopen
+        name: "{{ item.name }}"
+        network: "{{ item.image_network }}"
+        state: absent
+        wait: no
+      loop: "{{ instancesmiddleware }}"
+
+    - name: delete instances Backend
+      os_server:
+        cloud: pluscloudopen
+        name: "{{ item.name }}"
+        network: "{{ item.image_network }}"
+        state: absent
+        wait: no
+      loop: "{{ instancesbackend }}"
+
+    - name: Delete Loadbalancer
+      os_loadbalancer:
+        cloud: pluscloudopen
+        state: absent
+        name: "{{ loadbalancer_name }}"
+
+    - name: Delete Router
+      os_router:
+        cloud: pluscloudopen
+        state: absent
+        name: "{{ item.name }}"
+      loop: "{{ router_conf }}"
+
+    - name: Delete network
+      os_network:
+        cloud: pluscloudopen
+        state: absent
+        name: "{{ item.netname }}"
+        wait: yes
+      loop: "{{ networks }}"
+
+    - name: Delete subnet
+      os_subnet:
+        cloud: pluscloudopen
+        state: absent
+        network_name: "{{ item.netname }}"
+        name: "{{ item.subname }}"
+        wait: yes
+      loop: "{{ networks }}"
+

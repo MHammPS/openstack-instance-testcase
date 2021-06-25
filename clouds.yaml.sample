@@ -1,0 +1,10 @@
+---
+clouds:
+  pluscloudopen:
+    profile: pluscloudopen
+    auth:
+	  auth_url: https://api.example.com:5000
+      username: USERNAME
+      project_name: PROJECT
+      project_domain_name: DOMAIN
+      user_domain_name: DOMAIN

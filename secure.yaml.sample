@@ -1,0 +1,5 @@
+---
+clouds:
+  pluscloudopen:
+    auth:
+      password: PASSWORD

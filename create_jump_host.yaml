@@ -1,0 +1,27 @@
+---
+#
+# Create the jump host for an environment We need jumphostconfig.yaml for the variables in this file
+# This ansible gives you an ip adress, you can connect to
+# 
+#
+- name: Create Jump Host for internal ansibledata
+  hosts: localhost
+  tasks:
+    - include_vars: jumphostconfig.yaml
+
+    - name: Create Jump Host
+      os_server:
+        cloud: pluscloudopen
+        name: "{{ jumphost }}"
+        image: "{{ jumpos }}"
+        flavor: "{{ jumpflavor }}"
+        key_name: "{{ ssh_key }}"
+        timeout: 200
+        network: "{{ instance_network }}"
+        boot_from_volume: yes
+        terminate_volume: yes
+        auto_ip: yes
+      register: jumpinstance
+
+    - debug:
+        msg: "{{ jumpinstance.openstack.accessIPv4 }}"

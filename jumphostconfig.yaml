@@ -1,0 +1,12 @@
+---
+# variables for deploying Jump Host Environment
+# Router and Network must be the same as in variables.yaml
+
+jumphost: jumphost
+jumpflavor: 2C-2GB-20GB
+jumpos: Ubuntu 20.04
+ssh_key: hamm
+#
+#
+instance_network: front
+instance_subnet: front_sub
